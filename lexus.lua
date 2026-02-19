@@ -31,6 +31,7 @@ MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
 Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
+-- Draggable Logic
 local function MakeDraggable(frame)
 	local dragging, dragInput, dragStart, startPos
 	frame.InputBegan:Connect(function(input)
@@ -128,11 +129,25 @@ local function CreateToggle(parent, text, isMaster, cb)
 	f.MouseButton1Click:Connect(function() s = not s; f.BackgroundColor3 = s and Theme.Accent or Theme.Element; cb(s) end)
 end
 
-local MovePage = CreateTab("Movement", 11550188736) -- Feather Icon
+local function CreateButton(parent, text, isMaster, cb)
+	local f = Instance.new("TextButton", parent)
+	f.Size = UDim2.new(1, -10, 0, 38)
+	f.BackgroundColor3 = isMaster and Theme.Master or Theme.Element
+	f.Text = (isMaster and "[M] " or "") .. text
+	f.TextColor3 = Theme.Text
+	f.Font = Enum.Font.GothamBold
+	f.TextSize = 13
+	Instance.new("UICorner", f)
+	f.MouseButton1Click:Connect(cb)
+end
+
+-- TABS
+local MovePage = CreateTab("Movement", 11550188736) -- Feather
 local PlayerPage = CreateTab("Players", 11293977610)
 local VisualPage = CreateTab("Visuals", 11295286510)
 local ExploitPage = CreateTab("Exploits", 11293981532)
 
+-- FLY LOGIC
 local flyOn, flyMode, flySpeed = false, "Static", 2.5
 RunService.Heartbeat:Connect(function()
 	if flyOn and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
@@ -149,7 +164,8 @@ RunService.Heartbeat:Connect(function()
 		if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
 		
 		if flyMode == "Dynamic" then
-			hrp.CFrame = CFrame.new(hrp.Position + (dir * flySpeed), hrp.Position + (dir * flySpeed) + (cam.LookVector * -1))
+			-- Facing AWAY from camera: cam.LookVector used for orientation
+			hrp.CFrame = CFrame.new(hrp.Position + (dir * flySpeed), hrp.Position + (dir * flySpeed) + (cam.LookVector * 5))
 		else
 			hrp.CFrame = hrp.CFrame + (dir * flySpeed)
 		end
@@ -158,12 +174,31 @@ RunService.Heartbeat:Connect(function()
 	end
 end)
 
+-- MOVEMENT OPTIONS
 CreateToggle(MovePage, "Static Fly", false, function(v) flyOn = v; flyMode = "Static" end)
-CreateToggle(MovePage, "Dynamic Fly (Rotation Lock)", false, function(v) flyOn = v; flyMode = "Dynamic" end)
-CreateToggle(MovePage, "Infinite Jump", false, function(v) UserInputService.JumpRequest:Connect(function() if v then Player.Character.Humanoid:ChangeState("Jumping") end end) end)
-CreateToggle(MovePage, "NoClip", false, function(v) RunService.Stepped:Connect(function() if v then for _,p in pairs(Player.Character:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end end end) end)
-CreateToggle(MovePage, "Bunny Hop", false, function(v) RunService.RenderStepped:Connect(function() if v and Player.Character.Humanoid.MoveDirection.Magnitude > 0 and Player.Character.Humanoid.FloorMaterial ~= Enum.Material.Air then Player.Character.Humanoid:ChangeState("Jumping") end end) end)
+CreateToggle(MovePage, "Dynamic Fly (Away Lock)", false, function(v) flyOn = v; flyMode = "Dynamic" end)
+CreateToggle(MovePage, "Infinite Jump", false, function(v) _G.InfJump = v end)
+UserInputService.JumpRequest:Connect(function() if _G.InfJump then Player.Character.Humanoid:ChangeState("Jumping") end end)
+CreateToggle(MovePage, "No-Clip", false, function(v) _G.NoClip = v end)
+RunService.Stepped:Connect(function() if _G.NoClip then for _,p in pairs(Player.Character:GetDescendants()) do if p:IsA("BasePart") then p.CanCollide = false end end end end)
+CreateToggle(MovePage, "Speed Hack (100)", false, function(v) Player.Character.Humanoid.WalkSpeed = v and 100 or 16 end)
+CreateToggle(MovePage, "High Jump", false, function(v) Player.Character.Humanoid.JumpPower = v and 150 or 50 end)
 
+-- EXPLOIT OPTIONS (Master Button)
+CreateButton(ExploitPage, "Grant Master (One-Time)", true, function()
+	settings().Physics.AllowSleep = false
+	for _, v in pairs(game:GetDescendants()) do
+		if v:IsA("BasePart") and not v:IsDescendantOf(Player.Character) then
+			pcall(function() v:SetNetworkOwner(Player) end)
+		end
+	end
+end)
+CreateToggle(ExploitPage, "Anti-Void", false, function(v) _G.AntiVoid = v end)
+RunService.Heartbeat:Connect(function() if _G.AntiVoid and Player.Character.HumanoidRootPart.Position.Y < -50 then Player.Character.HumanoidRootPart.Velocity = Vector3.new(0,100,0) end end)
+CreateToggle(ExploitPage, "Auto-Clicker", false, function(v) task.spawn(function() while v do game:GetService("VirtualUser"):ClickButton1(Vector2.new(0,0)); task.wait(0.1) end end) end)
+CreateToggle(ExploitPage, "Kill All", true, function(v) end)
+
+-- PLAYER LIST
 local SelectedPlayer = nil
 local PList = Instance.new("ScrollingFrame", PlayerPage)
 PList.Size = UDim2.new(1, 0, 0.6, 0)
@@ -198,22 +233,15 @@ end
 AddAct("GoTo", false, function() Player.Character.HumanoidRootPart.CFrame = SelectedPlayer.Character.HumanoidRootPart.CFrame end)
 AddAct("Bring", true, function() SelectedPlayer.Character.HumanoidRootPart.CFrame = Player.Character.HumanoidRootPart.CFrame end)
 AddAct("Destroy Rig", true, function() for _,v in pairs(SelectedPlayer.Character:GetDescendants()) do if v:IsA("BasePart") then v:Destroy() end end end)
-AddAct("Dynamic Kill", true, function() while SelectedPlayer do SelectedPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(0, -500, 0); task.wait() end end)
-AddAct("View", false, function() workspace.CurrentCamera.CameraSubject = SelectedPlayer.Character.Humanoid end)
+AddAct("Dynamic Kill", true, function() SelectedPlayer.Character.HumanoidRootPart.CFrame = CFrame.new(0, -1000, 0) end)
+AddAct("Fling", true, function() local hrp = Player.Character.HumanoidRootPart; local thrp = SelectedPlayer.Character.HumanoidRootPart; hrp.CFrame = thrp.CFrame; hrp.Velocity = Vector3.new(99999, 99999, 99999) end)
 
-local masterOn = false
-RunService.Stepped:Connect(function()
-	if masterOn then
-		for _, v in pairs(game:GetDescendants()) do
-			if v:IsA("BasePart") and v.Name ~= "HumanoidRootPart" then pcall(function() v:SetNetworkOwner(Player) end) end
-		end
-	end
-end)
-CreateToggle(ExploitPage, "Loop Grant Master", true, function(v) masterOn = v end)
-CreateToggle(ExploitPage, "Anti-Afk", false, function(v) Player.Idled:Connect(function() if v then game:GetService("VirtualUser"):CaptureController(); game:GetService("VirtualUser"):ClickButton2(Vector2.new()) end end) end)
-CreateToggle(ExploitPage, "Spam Chat", false, function(v) task.spawn(function() while v do game:GetService("ReplicatedStorage").DefaultChatSystemChatEvents.SayMessageRequest:FireServer("LEXUS OWNED THIS SERVER", "All"); task.wait(1) end end) end)
-CreateToggle(ExploitPage, "Auto-Farm Coins", true, function(v) end) -- Game specific
+-- VISUALS
+CreateToggle(VisualPage, "Box ESP", false, function(v) _G.BoxESP = v end)
+CreateToggle(VisualPage, "Tracer ESP", false, function(v) _G.Tracers = v end)
+CreateToggle(VisualPage, "Name ESP", false, function(v) _G.Names = v end)
 
+-- TOGGLE MENU
 UserInputService.InputBegan:Connect(function(i, g)
 	if not g and (i.KeyCode == Enum.KeyCode.Insert or i.KeyCode == Enum.KeyCode.Delete) then
 		MainFrame.Visible = not MainFrame.Visible
