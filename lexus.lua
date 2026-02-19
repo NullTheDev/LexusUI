@@ -1,4 +1,5 @@
 local Player = game.Players.LocalPlayer
+local Mouse = Player:GetMouse()
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 local RunService = game:GetService("RunService")
@@ -11,171 +12,200 @@ local ScreenGui = Instance.new("ScreenGui")
 ScreenGui.Name = "LexusUI"
 ScreenGui.Parent = (gethui and gethui()) or CoreGui
 ScreenGui.DisplayOrder = 999999
+ScreenGui.IgnoreGuiInset = true
+
+local Theme = {
+	Accent = Color3.fromRGB(160, 132, 255),
+	Background = Color3.fromRGB(15, 15, 17),
+	Sidebar = Color3.fromRGB(22, 22, 25),
+	Element = Color3.fromRGB(30, 30, 35),
+	Text = Color3.fromRGB(255, 255, 255),
+}
 
 local MainFrame = Instance.new("Frame")
-MainFrame.Name = "MainFrame"
-MainFrame.Size = UDim2.new(0, 600, 0, 400)
-MainFrame.Position = UDim2.new(0.5, -300, 0.5, -200)
-MainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 17)
+MainFrame.Size = UDim2.new(0, 620, 0, 420)
+MainFrame.Position = UDim2.new(0.5, -310, 0.5, -210)
+MainFrame.BackgroundColor3 = Theme.Background
 MainFrame.BorderSizePixel = 0
 MainFrame.Parent = ScreenGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 10)
 
-local UIGradient = Instance.new("UIGradient")
-UIGradient.Color = ColorSequence.new({
-    ColorSequenceKeypoint.new(0, Color3.fromRGB(20, 20, 25)),
-    ColorSequenceKeypoint.new(1, Color3.fromRGB(35, 30, 45))
-})
-UIGradient.Parent = MainFrame
-
-local function MemoryPatch()
-    local success, err = pcall(function()
-        if setfflag then
-            setfflag("AbuseReportScreenshot", "False")
-            setfflag("LuaWebViewCrashReporting", "False")
-        end
-        if hookmetamethod then
-            local old; old = hookmetamethod(game, "__index", function(self, key)
-                if not checkcaller() and (key == "WalkSpeed" or key == "JumpPower") then
-                    return 16
-                end
-                return old(self, key)
-            end)
-        end
-    end)
+local function MakeDraggable(frame)
+	local dragging, dragInput, dragStart, startPos
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then
+			dragging = true; dragStart = input.Position; startPos = frame.Position
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+			local delta = input.Position - dragStart
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end)
+	UserInputService.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 then dragging = false end
+	end)
 end
-MemoryPatch()
-
-local ParticleEmitter = Instance.new("ParticleEmitter")
-ParticleEmitter.Acceleration = Vector3.new(0, 0.5, 0)
-ParticleEmitter.Lifetime = NumberRange.new(1, 2)
-ParticleEmitter.Rate = 5
-ParticleEmitter.Speed = NumberRange.new(5, 10)
-ParticleEmitter.Transparency = NumberSequence.new(0.5, 1)
-ParticleEmitter.Size = NumberSequence.new(2, 0)
-ParticleEmitter.Enabled = false
-local Attachment = Instance.new("Attachment", MainFrame)
-ParticleEmitter.Parent = Attachment
+MakeDraggable(MainFrame)
 
 local Sidebar = Instance.new("Frame")
-Sidebar.Size = UDim2.new(0, 160, 1, 0)
-Sidebar.BackgroundTransparency = 1
+Sidebar.Size = UDim2.new(0, 170, 1, 0)
+Sidebar.BackgroundColor3 = Theme.Sidebar
 Sidebar.Parent = MainFrame
+Instance.new("UICorner", Sidebar).CornerRadius = UDim.new(0, 10)
+
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 60)
+Title.Text = "LEXUS"
+Title.TextColor3 = Theme.Text
+Title.Font = Enum.Font.GothamBold
+Title.TextSize = 22
+Title.BackgroundTransparency = 1
+Title.Parent = Sidebar
+
+local TabContainer = Instance.new("ScrollingFrame")
+TabContainer.Size = UDim2.new(1, 0, 1, -70)
+TabContainer.Position = UDim2.new(0, 0, 0, 60)
+TabContainer.BackgroundTransparency = 1
+TabContainer.ScrollBarThickness = 0
+TabContainer.Parent = Sidebar
+Instance.new("UIListLayout", TabContainer).Padding = UDim.new(0, 5)
 
 local Content = Instance.new("Frame")
-Content.Size = UDim2.new(1, -170, 1, -20)
-Content.Position = UDim2.new(0, 165, 0, 10)
+Content.Size = UDim2.new(1, -190, 1, -20)
+Content.Position = UDim2.new(0, 180, 0, 10)
 Content.BackgroundTransparency = 1
 Content.Parent = MainFrame
 
-local TabButtons = Instance.new("ScrollingFrame")
-TabButtons.Size = UDim2.new(1, 0, 1, -60)
-TabButtons.Position = UDim2.new(0, 0, 0, 60)
-TabButtons.BackgroundTransparency = 1
-TabButtons.ScrollBarThickness = 0
-TabButtons.Parent = Sidebar
-Instance.new("UIListLayout", TabButtons).Padding = UDim.new(0, 5)
+local function CreateTab(name, iconId)
+	local Btn = Instance.new("TextButton", TabContainer)
+	Btn.Size = UDim2.new(1, -10, 0, 40)
+	Btn.BackgroundTransparency = 1
+	Btn.Text = "      " .. name
+	Btn.TextColor3 = Color3.fromRGB(150, 150, 150)
+	Btn.Font = Enum.Font.GothamSemibold
+	Btn.TextSize = 14
+	Btn.TextXAlignment = Enum.TextXAlignment.Left
+	Instance.new("UICorner", Btn)
 
-local function CreateTab(name, icon)
-    local Btn = Instance.new("TextButton")
-    Btn.Size = UDim2.new(1, -10, 0, 35)
-    Btn.BackgroundTransparency = 1
-    Btn.Text = "  " .. name
-    Btn.TextColor3 = Color3.fromRGB(180, 180, 180)
-    Btn.Font = Enum.Font.Gotham
-    Btn.TextSize = 14
-    Btn.TextXAlignment = Enum.TextXAlignment.Left
-    Btn.Parent = TabButtons
+	local Page = Instance.new("ScrollingFrame", Content)
+	Page.Size = UDim2.new(1, 0, 1, 0)
+	Page.BackgroundTransparency = 1
+	Page.Visible = false
+	Page.ScrollBarThickness = 0
+	Instance.new("UIListLayout", Page).Padding = UDim.new(0, 8)
 
-    local Page = Instance.new("ScrollingFrame")
-    Page.Size = UDim2.new(1, 0, 1, 0)
-    Page.BackgroundTransparency = 1
-    Page.Visible = false
-    Page.ScrollBarThickness = 0
-    Page.Parent = Content
-    Instance.new("UIListLayout", Page).Padding = UDim.new(0, 8)
-
-    Btn.MouseButton1Click:Connect(function()
-        for _, v in pairs(Content:GetChildren()) do if v:IsA("ScrollingFrame") then v.Visible = false end end
-        Page.Visible = true
-    end)
-    return Page
+	Btn.MouseButton1Click:Connect(function()
+		for _, v in pairs(Content:GetChildren()) do if v:IsA("ScrollingFrame") then v.Visible = false end end
+		Page.Visible = true
+		Page.Position = UDim2.new(0, 15, 0, 0)
+		TweenService:Create(Page, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Position = UDim2.new(0,0,0,0)}):Play()
+	end)
+	return Page
 end
 
-local MovePage = CreateTab("Movement")
-local PlayerPage = CreateTab("Player List")
-local VisualPage = CreateTab("Visuals")
-local ThemePage = CreateTab("Customization")
+local function CreateToggle(parent, text, cb)
+	local f = Instance.new("TextButton", parent)
+	f.Size = UDim2.new(1, -10, 0, 40)
+	f.BackgroundColor3 = Theme.Element
+	f.Text = "  " .. text
+	f.TextColor3 = Theme.Text
+	f.Font = Enum.Font.Gotham
+	f.TextSize = 13
+	f.TextXAlignment = Enum.TextXAlignment.Left
+	Instance.new("UICorner", f)
+	
+	local box = Instance.new("Frame", f)
+	box.Size = UDim2.new(0, 30, 0, 15)
+	box.Position = UDim2.new(1, -40, 0.5, -7)
+	box.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+	Instance.new("UICorner", box).CornerRadius = UDim.new(1, 0)
+	
+	local dot = Instance.new("Frame", box)
+	dot.Size = UDim2.new(0, 11, 0, 11)
+	dot.Position = UDim2.new(0, 2, 0.5, -5)
+	dot.BackgroundColor3 = Color3.new(1,1,1)
+	Instance.new("UICorner", dot).CornerRadius = UDim.new(1, 0)
 
-local flyActive = false
-local flyMode = "Static"
-local flyMult = 5
+	local s = false
+	f.MouseButton1Click:Connect(function()
+		s = not s
+		TweenService:Create(dot, TweenInfo.new(0.2), {Position = s and UDim2.new(1, -13, 0.5, -5) or UDim2.new(0, 2, 0.5, -5), BackgroundColor3 = s and Theme.Accent or Color3.new(1,1,1)}):Play()
+		cb(s)
+	end)
+end
 
-RunService.RenderStepped:Connect(function()
-    if not flyActive or not Player.Character:FindFirstChild("HumanoidRootPart") then return end
-    local root = Player.Character.HumanoidRootPart
-    local cam = workspace.CurrentCamera.CFrame
-    root.Velocity = Vector3.new(0, 0.1, 0) -- Anti-Fall Gravity Nullifier
+local MovePage = CreateTab("Movement", 10734883578)
+local VisualPage = CreateTab("Visuals", 10734883344)
+local PlayerPage = CreateTab("Players", 10734950309)
+local ExploitPage = CreateTab("Exploits", 10734881999)
+local ThemePage = CreateTab("Theme", 10734950056)
 
-    local dir = Vector3.zero
-    if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += (flyMode == "Dynamic" and cam.LookVector or cam.LookVector * Vector3.new(1,0,1)) end
-    if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= (flyMode == "Dynamic" and cam.LookVector or cam.LookVector * Vector3.new(1,0,1)) end
-    if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.RightVector end
-    if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.RightVector end
-    
-    root.CFrame = root.CFrame + (dir * flyMult)
+local flyOn = false
+local flySpeed = 5
+RunService.Heartbeat:Connect(function()
+	if flyOn and Player.Character and Player.Character:FindFirstChild("HumanoidRootPart") then
+		local hrp = Player.Character.HumanoidRootPart
+		local cam = workspace.CurrentCamera.CFrame
+		hrp.Velocity = Vector3.new(0,0.1,0)
+		local dir = Vector3.zero
+		if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.LookVector end
+		if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.LookVector end
+		hrp.CFrame = hrp.CFrame + (dir * (flySpeed/5))
+	end
 end)
 
-local function AddToggle(parent, text, cb)
-    local b = Instance.new("TextButton")
-    b.Size = UDim2.new(1, -10, 0, 30)
-    b.BackgroundColor3 = Color3.fromRGB(30,30,35)
-    b.Text = text
-    b.TextColor3 = Color3.new(1,1,1)
-    b.Parent = parent
-    local state = false
-    b.MouseButton1Click:Connect(function()
-        state = not state
-        b.BackgroundColor3 = state and Color3.fromRGB(80, 60, 200) or Color3.fromRGB(30,30,35)
-        cb(state)
-    end)
-end
+CreateToggle(MovePage, "Fly Enabled", function(v) flyOn = v end)
 
-AddToggle(MovePage, "Static Fly (Fast)", function(v) flyActive = v; flyMode = "Static" end)
-AddToggle(MovePage, "Dynamic Fly (Look)", function(v) flyActive = v; flyMode = "Dynamic" end)
+local masterOn = false
+RunService.Stepped:Connect(function()
+	if masterOn then
+		settings().Physics.AllowSleep = false
+		for _, v in pairs(game:GetDescendants()) do
+			if v:IsA("BasePart") then
+				v.Velocity = Vector3.new(0, 0, 0.01) -- Keep parts awake
+				pcall(function() v:SetNetworkOwner(Player) end)
+			end
+		end
+	end
+end)
+CreateToggle(ExploitPage, "Loop Grant Master", function(v) masterOn = v end)
 
-local SelectedPlayer = nil
+local cp = Instance.new("TextBox", ThemePage)
+cp.Size = UDim2.new(1, -10, 0, 35)
+cp.BackgroundColor3 = Theme.Element
+cp.Text = "Enter Accent Hex (e.g. #FF0000)"
+cp.TextColor3 = Theme.Text
+Instance.new("UICorner", cp)
+cp.FocusLost:Connect(function()
+	local success, color = pcall(function() return Color3.fromHex(cp.Text) end)
+	if success then Theme.Accent = color end
+end)
+
 local PList = Instance.new("ScrollingFrame", PlayerPage)
 PList.Size = UDim2.new(1, 0, 0.7, 0)
-PList.BackgroundTransparency = 0.9
+PList.BackgroundTransparency = 1
 Instance.new("UIListLayout", PList)
 
-local Controls = Instance.new("Frame", PlayerPage)
-Controls.Size = UDim2.new(1, 0, 0.25, 0)
-Controls.BackgroundTransparency = 1
-
-local function RefreshList()
-    for _, v in pairs(PList:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
-    for _, p in pairs(Players:GetPlayers()) do
-        local b = Instance.new("TextButton", PList)
-        b.Size = UDim2.new(1, 0, 0, 25)
-        b.Text = p.Name
-        b.MouseButton1Click:Connect(function() SelectedPlayer = p end)
-    end
+local function UpdatePlayers()
+	for _,v in pairs(PList:GetChildren()) do if v:IsA("TextButton") then v:Destroy() end end
+	for _,p in pairs(Players:GetPlayers()) do
+		local b = Instance.new("TextButton", PList)
+		b.Size = UDim2.new(1, -10, 0, 30)
+		b.BackgroundColor3 = Theme.Element
+		b.Text = p.Name
+		b.TextColor3 = Theme.Text
+		Instance.new("UICorner", b)
+		b.MouseButton1Click:Connect(function()
+			pcall(function() Player.Character.HumanoidRootPart.CFrame = p.Character.HumanoidRootPart.CFrame end)
+		end)
+	end
 end
-RefreshList()
+UpdatePlayers()
 
-local GoTo = Instance.new("TextButton", Controls)
-GoTo.Size = UDim2.new(0, 100, 0, 30)
-GoTo.Text = "Go To"
-GoTo.MouseButton1Click:Connect(function()
-    if SelectedPlayer and SelectedPlayer.Character then
-        Player.Character:MoveTo(SelectedPlayer.Character.HumanoidRootPart.Position)
-    end
-end)
-
-UserInputService.InputBegan:Connect(function(input, gpe)
-    if input.KeyCode == Enum.KeyCode.Insert or input.KeyCode == Enum.KeyCode.Delete then
-        MainFrame.Visible = not MainFrame.Visible
-        ParticleEmitter.Enabled = MainFrame.Visible
-    end
+UserInputService.InputBegan:Connect(function(i, g)
+	if not g and (i.KeyCode == Enum.KeyCode.Insert or i.KeyCode == Enum.KeyCode.Delete) then
+		MainFrame.Visible = not MainFrame.Visible
+	end
 end)
